@@ -39,6 +39,12 @@ func TestResponseReverter(t *testing.T) {
 	doReverterTests(rules, t)
 
 	rules = []Rule{}
+	r, _ = newNameRule("stop", "regex", `(core)\.(dns)\.(rocks)`, "{2}.{1}.{3}", "answer", "name", `revert`)
+	rules = append(rules, r)
+
+	doReverterTests(rules, t)
+
+	rules = []Rule{}
 	r, _ = newNameRule("continue", "regex", `(core)\.(dns)\.(rocks)`, "{2}.{1}.{3}", "answer", "name", `(dns)\.(core)\.(rocks)`, "{2}.{1}.{3}")
 	rules = append(rules, r)
 

@@ -140,11 +140,11 @@ func newNameRule(nextAction string, args ...string) (Rule, error) {
 		}
 	}
 
-	if len(args) > 3 && len(args) != 7 {
-		return nil, fmt.Errorf("response rewrites must consist only of a name rule with 3 arguments and an answer rule with 3 arguments")
+	if len(args) > 3 && len(args) != 6 && len(args) != 7 {
+		return nil, fmt.Errorf("response rewrites must consist only of a name rule with 3 arguments and an answer rule with 2 or 3 arguments")
 	}
 
-	if len(args) < 7 {
+	if len(args) < 6 {
 		switch matchType {
 		case ExactMatch:
 			rewriteAnswerFromPattern, err := isValidRegexPattern(rewriteQuestionTo, rewriteQuestionFrom)
@@ -198,42 +198,58 @@ func newNameRule(nextAction string, args ...string) (Rule, error) {
 			return nil, fmt.Errorf("name rule supports only exact, prefix, suffix, substring, and regex name matching, received: %s", matchType)
 		}
 	}
-	if len(args) == 7 {
-		if matchType == RegexMatch {
-			if args[3] != "answer" {
+	if len(args) == 6 || len(args) == 7 {
+		if matchType != RegexMatch {
+			return nil, fmt.Errorf("the rewrite of response is supported only for name regex rule")
+		}
+		if args[3] != "answer" {
+			return nil, fmt.Errorf("exceeded the number of arguments for a regex name rule")
+		}
+		rewriteQuestionFromPattern, err := isValidRegexPattern(rewriteQuestionFrom, rewriteQuestionTo)
+		if err != nil {
+			return nil, err
+		}
+		rewriteAnswerField = strings.ToLower(args[4])
+		switch rewriteAnswerField {
+		case "name":
+		default:
+			return nil, fmt.Errorf("exceeded the number of arguments for a regex name rule")
+		}
+		rewriteQuestionTo = plugin.Name(args[2]).Normalize()
+		if len(args) == 6 {
+			rewriteAnswerFlag := strings.ToLower(args[5])
+			if rewriteAnswerFlag != "revert" {
 				return nil, fmt.Errorf("exceeded the number of arguments for a regex name rule")
 			}
-			rewriteQuestionFromPattern, err := isValidRegexPattern(rewriteQuestionFrom, rewriteQuestionTo)
-			if err != nil {
-				return nil, err
-			}
-			rewriteAnswerField = strings.ToLower(args[4])
-			switch rewriteAnswerField {
-			case "name":
-			default:
-				return nil, fmt.Errorf("exceeded the number of arguments for a regex name rule")
-			}
-			rewriteAnswerFrom = args[5]
-			rewriteAnswerTo = args[6]
-			rewriteAnswerFromPattern, err := isValidRegexPattern(rewriteAnswerFrom, rewriteAnswerTo)
-			if err != nil {
-				return nil, err
-			}
-			rewriteQuestionTo = plugin.Name(args[2]).Normalize()
-			rewriteAnswerTo = plugin.Name(args[6]).Normalize()
 			return &regexNameRule{
 				nextAction,
 				rewriteQuestionFromPattern,
 				rewriteQuestionTo,
 				ResponseRule{
-					Active:      true,
-					Type:        "name",
-					Pattern:     rewriteAnswerFromPattern,
-					Replacement: rewriteAnswerTo,
+					Active: true,
+					Type:   "name",
+					Revert: true,
 				},
 			}, nil
 		}
-		return nil, fmt.Errorf("the rewrite of response is supported only for name regex rule")
+		rewriteAnswerFrom = args[5]
+		rewriteAnswerTo = args[6]
+		rewriteAnswerFromPattern, err := isValidRegexPattern(rewriteAnswerFrom, rewriteAnswerTo)
+		if err != nil {
+			return nil, err
+		}
+		rewriteAnswerTo = plugin.Name(args[6]).Normalize()
+		return &regexNameRule{
+			nextAction,
+			rewriteQuestionFromPattern,
+			rewriteQuestionTo,
+			ResponseRule{
+				Active:      true,
+				Type:        "name",
+				Pattern:     rewriteAnswerFromPattern,
+				Replacement: rewriteAnswerTo,
+			},
+		}, nil
 	}
 	return nil, fmt.Errorf("the rewrite rule is invalid: %s", args)
 }

@@ -15,6 +15,7 @@ type ResponseRule struct {
 	Pattern     *regexp.Regexp
 	Replacement string
 	TTL         uint32
+	Revert      bool
 }
 
 // ResponseReverter reverses the operations done on the question section of a packet.
@@ -37,6 +38,7 @@ func NewResponseReverter(w dns.ResponseWriter, r *dns.Msg) *ResponseReverter {
 
 // WriteMsg records the status code and calls the underlying ResponseWriter's WriteMsg method.
 func (r *ResponseReverter) WriteMsg(res *dns.Msg) error {
+	rewrittenQuestion := res.Question[0].Name
 	res.Question[0] = r.originalQuestion
 	if r.ResponseRewrite {
 		for _, rr := range res.Answer {
@@ -52,6 +54,13 @@ func (r *ResponseReverter) WriteMsg(res *dns.Msg) error {
 				}
 				switch rule.Type {
 				case "name":
+					if rule.Revert {
+						if rewrittenQuestion == rr.Header().Name {
+							name = r.originalQuestion.Name
+							isNameRewritten = true
+						}
+						continue
+					}
 					regexGroups := rule.Pattern.FindStringSubmatch(name)
 					if len(regexGroups) == 0 {
 						continue
